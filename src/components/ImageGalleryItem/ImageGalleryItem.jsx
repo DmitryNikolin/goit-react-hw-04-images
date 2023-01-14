@@ -18,8 +18,6 @@ function ImageGalleryItem({ articles, onImage }) {
   );
 }
 
-export default ImageGalleryItem;
-
 ImageGalleryItem.propTypes = {
   id: PropTypes.string,
   webformatURL: PropTypes.string,
@@ -27,3 +25,6 @@ ImageGalleryItem.propTypes = {
   tags: PropTypes.string,
   onImage: PropTypes.func,
 };
+
+export default ImageGalleryItem;
+

@@ -11,8 +11,8 @@ function Button({ onButtonClick }) {
   );
 }
 
-export default Button;
-
 Button.propTypes = {
   onButtonClick: PropTypes.func,
 };
+
+export default Button;
