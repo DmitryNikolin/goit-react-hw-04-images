@@ -1,121 +1,74 @@
-import React, { Component } from 'react';
+import { useState, useEffect } from 'react';
 import Notiflix from 'notiflix';
-import { pageLimit, getGallery } from 'services/API';
-import Searchbar from './Searchbar/Searchbar';
 import Button from './Button/Button';
-import ImageGallery from './ImageGallery/ImageGallery';
-import ImageGalleryItem from './ImageGalleryItem/ImageGalleryItem';
-import Modal from './Modal/Modal';
 import Loader from './Loader/Loader';
+import { Searchbar } from './Searchbar/Searchbar';
+import { ImageGallery } from './ImageGallery/ImageGallery';
+import { Modal } from './Modal/Modal';
+import { fetchImages } from '../services/API';
 
-console.log(pageLimit);
+export const App = () => {
+  const [name, setName] = useState('');
+  const [page, setPage] = useState(1);
+  const [items, setItems] = useState([]);
+  const [showButton, setShowButton] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImageURL, setLargeImageURL] = useState('');
+  const [loading, setLoading] = useState(false);
 
-class App extends Component {
-  state = {
-    hits: [],
-    name: '',
-    page: 1,
-    showModal: false,
-    loading: false,
-    largeImageURL: '',
-    tags: '',
-    status: 'idle',
-  };
-
-  async componentDidUpdate(_, prevState) {
-    const { name, page } = this.state;
-    try {
-      if (prevState.name !== name || prevState.page !== page) {
-        this.setState({
-          loading: true,
-          status: 'pending',
-        });
-      }
-      if (prevState.name !== name) {
-        const { hits } = await getGallery(name, page);
-        if (hits.totalHits === 0) {
-          Notiflix.Notify.failure('No images found!');
-        }
-
-        this.setState(() => ({
-          hits: [...hits],
-          loading: false,
-          status: 'resolved',
-        }));
-        return;
-      }
-
-      if (prevState.page !== page && page !== 1) {
-        const { hits } = await getGallery(name, page);
-        this.setState(prevState => ({
-          hits: [...prevState.hits, ...hits],
-          loading: false,
-          status: 'resolved',
-        }));
-      }
+  useEffect(() => {
+    if (name === '') {
       return;
-    } catch (error) {
-      this.setState({
-        error: true,
-        status: 'rejected',
+    }
+    setLoading(true);
+    fetchImages(name, page)
+      .then(items => {
+        if (items.hits.length === 0) {
+          setShowButton(false);
+          Notiflix.Notify.info('There are no images for your request');
+        }
+        setItems(prevItems => [...prevItems, ...items.hits]);
+        setShowButton(page < Math.ceil(items.total / 12) ? true : false);
+        setLoading(false);
+      })
+      .catch(error => console.log(error))
+      .finally(() => {
+        setLoading(false);
       });
-      console.log(error);
-    }
-  }
+  }, [name, page]);
 
-  toggleModal = (imageURL, tag, id) => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-      largeImageURL: imageURL,
-      tags: tag,
-    }));
+  const handleSubmit = name => {
+    setName(name);
+    setPage(1);
+    setItems([]);
+    setShowButton(false);
+    setShowModal(false);
+    setLargeImageURL('');
+    setLoading(false);
   };
 
-  handleFormSubmit = ({ name, page }) => {
-    const newQuery = name.trim().toLowerCase();
-    if (newQuery === '') {
-      return console.log('no images');
-    }
-    this.setState({
-      name,
-      page,
-    });
+  const toggleModal = () => setShowModal(showModal => !showModal);
+
+  const onButtonClick = () => setPage(prevPage => prevPage + 1);
+
+  const getImageUrl = url => {
+    console.log(url);
+    setLargeImageURL(url);
   };
 
-  loadMore = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
-  };
-
-  render() {
-    const { hits, showModal, loading, largeImageURL, tags, status } =
-      this.state;
-
-    return (
-      <div>
-        <Searchbar onSubmitHandler={this.handleFormSubmit} />
-
-        {hits && (
-          <ImageGallery>
-            <ImageGalleryItem articles={hits} onImage={this.toggleModal} />
-          </ImageGallery>
-        )}
-
-        {showModal && (
-          <Modal onClose={this.toggleModal} url={largeImageURL} alt={tags} />
-        )}
-
-        {status === 'pending' && loading && <Loader />}
-
-        {hits.length > 0 &&
-          hits.length >= pageLimit &&
-          status === 'resolved' && (
-            <Button onButtonClick={() => this.loadMore()} />
-          )}
-      </div>
-    );
-  }
-}
-
-export default App;
+  return (
+    <div>
+      <Searchbar onSubmit={handleSubmit} />
+      <ImageGallery
+        items={items}
+        getImageUrl={getImageUrl}
+        toggleModal={toggleModal}
+      />
+      {showModal && (
+        <Modal onClose={toggleModal} largeImageURL={largeImageURL} />
+      )}
+      {loading && <Loader />}
+      {showButton && <Button onButtonClick={onButtonClick} />}
+    </div>
+  );
+};
